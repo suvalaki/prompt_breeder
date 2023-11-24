@@ -1,0 +1,2 @@
+# prompt_breeder
+Implementation of PROMPTBREEDER: SELF-REFERENTIAL SELF-IMPROVEMENT VIA PROMPT EVOLUTION for langchain
