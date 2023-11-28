@@ -73,7 +73,7 @@ def test_creates_requuired_different_initial_thinking_styles():
 
 
 def test_population():
-    llm = Ollama(model="mistral")
+    llm = Ollama(model="mistral", temperature=1.0)
     initializer = ZeroOrderInitialization.from_llm(
         problem_description_factory=lambda x: StringProblemDescription(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
