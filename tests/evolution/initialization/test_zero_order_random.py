@@ -90,4 +90,5 @@ def test_population():
     )
     ans = pop_initializer.initialize(problem_description="Solve the math word problem")
     assert len(ans.members) == 2
+    # validate that each LLM call gets a different starting point
     assert all([x != y for x in ans.members for y in ans.members if x is not y])
