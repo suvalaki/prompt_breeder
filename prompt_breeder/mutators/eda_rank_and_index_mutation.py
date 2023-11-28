@@ -15,7 +15,7 @@ from prompt_breeder.mutators.estimation_of_distribution_mutation import (
 
 class EdaRankAndIndexMutation(EstimationOfDistributionMutation):
     fitness_scorer: FitnessScorer
-    prompt = PromptTemplate.from_template(
+    prompt: PromptTemplate = PromptTemplate.from_template(
         "INSTRUCTION: {mutation_prompt}"
         + "\n A List ofResponses in descending order of score. "
         + "{task_prompt_set}  INSTRUCTION MUTATNT: "

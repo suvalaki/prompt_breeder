@@ -28,7 +28,9 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
     resulting in an initial task-prompt
     """
 
-    prompt = PromptTemplate.from_template("{task_prompt_set}  INSTRUCTION MUTATNT: ")
+    prompt: PromptTemplate = PromptTemplate.from_template(
+        "{task_prompt_set}  INSTRUCTION MUTATNT: "
+    )
     embed_scorer: EmbeddingDistanceEvalChain
     threshold: float = 0.05  # distance between the keys
 

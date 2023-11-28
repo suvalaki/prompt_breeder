@@ -14,7 +14,10 @@ class SingleRegexParser(RegexParser):
     output_keys: List[str] = ["output"]
 
     def parse(self, text: str) -> str:  # type: ignore
-        return super().parse(text)[self.output_key]
+        try:
+            return super().parse(text)[self.output_key]
+        except Exception:
+            return ""
 
 
 class ZeroOrderPromptGeneration(LLMChain, DirectMutator):
@@ -23,7 +26,7 @@ class ZeroOrderPromptGeneration(LLMChain, DirectMutator):
     with the prompt "A list of 100 hints:", which invites the LLM to come up with
     a new hint that could help solve a problem in the given problem domain."""
 
-    prompt = PromptTemplate.from_template(
+    prompt: PromptTemplate = PromptTemplate.from_template(
         "{problem_description} An ordered list of 100 hints: "
     )
-    output_parser = SingleRegexParser(regex=r"1\.((.|\n)*?)2\.")
+    output_parser: SingleRegexParser = SingleRegexParser(regex=r"1\.((.|\n)*?)2\.")

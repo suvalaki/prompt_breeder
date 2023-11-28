@@ -13,6 +13,6 @@ class FirstOrderPromptGeneration(LLMChain, DirectMutator):
     Promptbreeder’s standard asexual mutation operat
     """
 
-    prompt = PromptTemplate.from_template(
+    prompt: PromptTemplate = PromptTemplate.from_template(
         "{mutation_prompt}  INSTRUCTION: {task_prompt}  INSTRUCTION MUTATNT: "
     )

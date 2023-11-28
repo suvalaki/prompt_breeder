@@ -27,7 +27,7 @@ class WorkingOutToTask(LLMChain, Mutator):
     correct_working_out_provider: Iterator[Phenotype]
     max_context_size: int = 2
 
-    prompt = PromptTemplate.from_template(
+    prompt: PromptTemplate = PromptTemplate.from_template(
         "I gave a friend an instruction and some advice. "
         "Here are the correct examples of his workings out: \n{context}\n"
         "The instruction was: "

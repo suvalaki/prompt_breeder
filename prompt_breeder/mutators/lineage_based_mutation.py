@@ -21,7 +21,7 @@ class LineageBasedMutation(LLMChain, DistributionEstimationMutator):
     produce a novel prompt as continuation.
     """
 
-    prompt = PromptTemplate.from_template(
+    prompt: PromptTemplate = PromptTemplate.from_template(
         "INSTRUCTION GENOTYPES FOUND IN ASCENDING ORDER OF QUALITY"
         "\n{elites}\nINSTRUCTION: "
     )

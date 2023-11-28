@@ -55,7 +55,7 @@ class DistributionEstimationMutator(Mutator):
                     {
                         "population": population,
                         "problem_description": str(unit.problem_description),
-                        "task_prompt": str(member),
+                        "task_prompt": member,
                         "mutation_prompt": str(unit.mutation_prompt),
                         "task_prompt_set": [str(x) for x in unit.task_prompt_set],
                         "elites": [str(x) for x in unit.elites],
