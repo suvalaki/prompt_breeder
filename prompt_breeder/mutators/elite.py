@@ -41,5 +41,24 @@ class AddElite(Mutator):
         self, inputs: Dict[str, UnitOfEvolution], run_manager=None, **kwargs
     ) -> Dict[str, UnitOfEvolution]:
         unit = deepcopy(inputs["unit"])
-        unit.elites += [self.max_fitness_prompt(unit.task_prompt_set)]
+        if str(unit) not in [str(x) for x in unit.elites]:
+            best_prompt = self.max_fitness_prompt(
+                unit.task_prompt_set, run_manager=run_manager
+            )
+            best_fit = self.fitness_scorer.score(
+                best_prompt, callbacks=run_manager.get_child() if run_manager else None
+            )
+
+            if len(unit.elites) > 0:
+                best_prompt_old = self.max_fitness_prompt(
+                    unit.elites, run_manager=run_manager
+                )
+                best_fit_old = self.fitness_scorer.score(
+                    best_prompt_old,
+                    callbacks=run_manager.get_child() if run_manager else None,
+                )
+                if best_fit >= best_fit_old:
+                    unit.elites += [best_prompt]
+            else:
+                unit.elites += [best_prompt]
         return {self.output_key: unit}
