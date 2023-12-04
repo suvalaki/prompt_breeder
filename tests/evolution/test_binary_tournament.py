@@ -1,6 +1,8 @@
 # Create a simple one mutator binary tourno
 import pytest  # noqa: F401
-from langchain.llms import Ollama
+from typing import List, Any, Optional
+from langchain.llms.base import LLM
+from langchain.callbacks.manager import CallbackManagerForLLMRun
 from prompt_breeder.evolution.binary_tournament import BinaryEvolution
 
 
@@ -20,6 +22,21 @@ from prompt_breeder.evolution.base import EvolutionExecutor
 from prompt_breeder.mutators.elite import (
     AddElite,
 )
+
+
+class MockPassthroughLLM(LLM):
+    @property
+    def _llm_type(self) -> str:
+        return "passthrough"
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> str:
+        return prompt
 
 
 class StringLengthFitness:
@@ -73,7 +90,7 @@ def test_one_mutant_unit():
     population = Population(members=[unit0, unit1])
 
     # Create the set of mutators
-    llm = Ollama(model="mistral", temperature=1.0)
+    llm = MockPassthroughLLM()
     mutator = ZeroOrderHypermutation.from_llm(
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
@@ -138,7 +155,7 @@ def test_multiple_steps():
     population = Population(members=[unit0, unit1])
 
     # Create the set of mutators
-    llm = Ollama(model="mistral", temperature=1.0)
+    llm = MockPassthroughLLM()
     mutator = ZeroOrderHypermutation.from_llm(
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),

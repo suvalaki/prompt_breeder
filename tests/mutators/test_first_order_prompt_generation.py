@@ -1,5 +1,7 @@
 import pytest  # noqa: F401
-from langchain.llms import Ollama
+from typing import Dict, List, Any, Optional
+from langchain.llms.base import LLM
+from langchain.callbacks.manager import CallbackManagerForLLMRun
 from prompt_breeder.types import UnitOfEvolution, Population
 from prompt_breeder.prompts.string import (
     StringPrompt,
@@ -11,19 +13,45 @@ from prompt_breeder.mutators.first_order_prompt_generation import (
 )
 
 
+KEY0 = "key0"
+KEY1 = "key1"
+
+# "{task_prompt_set}  INSTRUCTION MUTATNT: "
+FIXED_PROMPT_REPLY: Dict[str, str] = {
+    KEY0: KEY0,
+    KEY1: KEY1,
+}
+
+
+class MockLLM(LLM):
+    @property
+    def _llm_type(self) -> str:
+        return "custom_first_order_gen"
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> str:
+        for k in FIXED_PROMPT_REPLY:
+            if k in prompt:
+                return FIXED_PROMPT_REPLY[k]
+        raise ValueError(f"key isnt available. prompt: {prompt}")
+
+
 def test_runs_over_unit():
-    llm = Ollama(model="mistral")
-    prompt0 = StringTaskPrompt(text="Solve the math word problem, show your workings.")
-    prompt1 = StringTaskPrompt(text="Solve the math word problem.")
+    llm = MockLLM()
+    prompt0 = StringTaskPrompt(text=KEY0)
+    prompt1 = StringTaskPrompt(text=KEY1)
     unit = UnitOfEvolution(
-        problem_description=StringPrompt(
-            text="Solve the math word problem, giving your answer as an arabic numeral"
-        ),
+        problem_description=StringPrompt(text="ignored by first order"),
         task_prompt_set=[
             prompt0,
             prompt1,
         ],
-        mutation_prompt=StringMutationPrompt(text="make the task better."),
+        mutation_prompt=StringMutationPrompt(text="not ignored but also not needed"),
         elites=[],
     )
     mutator = FirstOrderPromptGeneration(

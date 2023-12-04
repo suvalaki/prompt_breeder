@@ -1,6 +1,8 @@
 import pytest  # noqa: F401
-from langchain.llms import Ollama
-from langchain.embeddings import OllamaEmbeddings
+from typing import Dict, List, Any, Optional
+from langchain.llms.base import LLM
+from langchain.embeddings.base import Embeddings
+from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.evaluation import load_evaluator
 from langchain.evaluation.embedding_distance.base import (
     EmbeddingDistance,
@@ -17,22 +19,68 @@ from prompt_breeder.mutators.estimation_of_distribution_mutation import (
 )
 
 
+KEY0 = "key0"
+KEY1 = "key1"
+
+# Hardcode the embeddings with known cosine distances between
+# them.
+FIXED_EMBEDDINGS: Dict[str, List[float]] = {
+    KEY0: [1.0, 1.0, 1.0, 1.0],
+    KEY1: [-1.0, -1.0, -1.0, -1.0],
+}
+
+
+class MockFixedEmbeddings(Embeddings):
+    """Embeddings that always return the fixed membership we defined
+    within FIXED_EMBEDDINGS"""
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return [self.embed_query(text) for text in texts]
+
+    def embed_query(self, text: str) -> List[float]:
+        return FIXED_EMBEDDINGS[text]
+
+
+# "{task_prompt_set}  INSTRUCTION MUTATNT: "
+FIXED_PROMPT_REPLY: Dict[str, str] = {
+    KEY0: "",
+    KEY1: "",
+}
+
+
+class MockLLM(LLM):
+    """Hijack LLM so that it works with regex parser.
+    Need to have admissible inputs"""
+
+    @property
+    def _llm_type(self) -> str:
+        return "custom_estimation_of_distribution"
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> str:
+        for k in FIXED_PROMPT_REPLY:
+            if k in prompt:
+                return FIXED_PROMPT_REPLY[k]
+        raise ValueError(f"key isnt available. prompt: {prompt}")
+
+
 def test_same_string_is_filtered():
-    llm = Ollama(model="mistral", temperature=1.0)
-    embed_model = OllamaEmbeddings(
-        model="mistral",
-    )
-    prompt0 = StringTaskPrompt(text="Solve the math word problem.")
-    prompt1 = StringTaskPrompt(text="Solve the math word problem.")
+    llm = MockLLM()
+    embed_model = MockFixedEmbeddings()
+    prompt0 = StringTaskPrompt(text="key0")
+    prompt1 = StringTaskPrompt(text="key0")
     unit = UnitOfEvolution(  # noqa: F841
-        problem_description=StringPrompt(
-            text="Solve the math word problem, giving your answer as an arabic numeral."
-        ),
+        problem_description=StringPrompt(text="ignored by ED mutation"),
         task_prompt_set=[
             prompt0,
             prompt1,
         ],
-        mutation_prompt=StringMutationPrompt(text="make the task better."),
+        mutation_prompt=StringMutationPrompt(text="ignored by ED mutation"),
         elites=[],
     )
     scorer = load_evaluator(
@@ -55,22 +103,52 @@ def test_same_string_is_filtered():
     assert len(ans) == 1
 
 
-def test_runs_over_unit():
-    llm = Ollama(model="mistral", temperature=1.0)
-    embed_model = OllamaEmbeddings(
-        model="mistral",
-    )
-    prompt0 = StringTaskPrompt(text="Solve the math word problem, show your workings.")
-    prompt1 = StringTaskPrompt(text="Solve the math word problem.")
-    unit = UnitOfEvolution(
-        problem_description=StringPrompt(
-            text="Solve the math word problem, giving your answer as an arabic numeral."
-        ),
+def test_different_string_is_not_filtered():
+    llm = MockLLM()
+    embed_model = MockFixedEmbeddings()
+    prompt0 = StringTaskPrompt(text="key0")
+    prompt1 = StringTaskPrompt(text="key1")
+    unit = UnitOfEvolution(  # noqa: F841
+        problem_description=StringPrompt(text="ignored by ED mutation"),
         task_prompt_set=[
             prompt0,
             prompt1,
         ],
-        mutation_prompt=StringMutationPrompt(text="make the task better."),
+        mutation_prompt=StringMutationPrompt(text="ignored by ED mutation"),
+        elites=[],
+    )
+    scorer = load_evaluator(
+        "embedding_distance",
+        distance_metric=EmbeddingDistance.EUCLIDEAN,
+        embeddings=embed_model,
+    )
+    _ = scorer.evaluate_strings(
+        prediction=str(prompt0),
+        reference=str(prompt1),
+    )
+    mutator = EstimationOfDistributionMutation(
+        llm=llm,
+        embed_scorer=scorer,
+        task_prompt_factory=lambda x: StringTaskPrompt(text=x),
+        mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
+        verbose=1,
+    )
+    ans = mutator.filter_population([prompt0, prompt1])
+    assert len(ans) == 2
+
+
+def test_runs_over_unit():
+    llm = MockLLM()
+    embed_model = MockFixedEmbeddings()
+    prompt0 = StringTaskPrompt(text="key0")
+    prompt1 = StringTaskPrompt(text="key0")
+    unit = UnitOfEvolution(  # noqa: F841
+        problem_description=StringPrompt(text="ignored by ED mutation"),
+        task_prompt_set=[
+            prompt0,
+            prompt1,
+        ],
+        mutation_prompt=StringMutationPrompt(text="ignored by ED mutation"),
         elites=[],
     )
     scorer = load_evaluator(
@@ -80,7 +158,7 @@ def test_runs_over_unit():
     )
     _ = scorer._evaluate_strings(
         prediction=str(prompt0),
-        prediction_b=str(prompt1),
+        reference=str(prompt1),
     )
     mutator = EstimationOfDistributionMutation(
         llm=llm,

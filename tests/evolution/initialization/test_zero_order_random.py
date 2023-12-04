@@ -1,5 +1,7 @@
 import pytest  # noqa: F401
-from langchain.llms import Ollama
+from typing import List, Any, Optional
+from langchain.llms.base import LLM
+from langchain.callbacks.manager import CallbackManagerForLLMRun
 from prompt_breeder.prompts.string import (
     StringTaskPrompt,
     StringMutationPrompt,
@@ -10,6 +12,21 @@ from prompt_breeder.evolution.initialization.base import PopulationInitializatio
 from prompt_breeder.evolution.initialization.zero_order_random import (
     ZeroOrderInitialization,
 )
+
+
+class MockPassthroughLLM(LLM):
+    @property
+    def _llm_type(self) -> str:
+        return "passthrough"
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> str:
+        return prompt
 
 
 class MockThinkingStyleProvider:
@@ -54,7 +71,7 @@ class MockMutationPromptProvider:
 
 
 def test_creates_requuired_different_initial_thinking_styles():
-    llm = Ollama(model="mistral", temperature=1.0)
+    llm = MockPassthroughLLM()
     initializer = ZeroOrderInitialization.from_llm(
         problem_description_factory=lambda x: StringProblemDescription(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
@@ -75,7 +92,7 @@ def test_creates_requuired_different_initial_thinking_styles():
 
 
 def test_population():
-    llm = Ollama(model="mistral", temperature=1.0)
+    llm = MockPassthroughLLM()
     initializer = ZeroOrderInitialization.from_llm(
         problem_description_factory=lambda x: StringProblemDescription(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),

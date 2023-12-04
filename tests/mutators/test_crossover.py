@@ -1,5 +1,4 @@
 import pytest  # noqa: F401
-from langchain.llms import Ollama
 from prompt_breeder.types import UnitOfEvolution, Population
 from prompt_breeder.prompts.string import (
     StringPrompt,
@@ -20,8 +19,6 @@ class StringLengthFitness(Fitness):
 
 
 def test_probability_map_includes_only_other_units():
-    llm = Ollama(model="mistral", temperature=0.0)
-
     prompt0 = StringTaskPrompt(text="Solve the math word problem, show your workings.")
     prompt1 = StringTaskPrompt(text="Solve the math word problem.")
     unit0 = UnitOfEvolution(
@@ -55,7 +52,6 @@ def test_probability_map_includes_only_other_units():
     population = Population(members=[unit0, unit1])
 
     mutator = PromptCrossover(
-        llm=llm,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         fitness_scorer=StringLengthFitness(),
@@ -77,8 +73,6 @@ def test_probability_map_includes_only_other_units():
 
 
 def test_mutation_isnt_inplace():
-    llm = Ollama(model="mistral", temperature=0.0)
-
     prompt0 = StringTaskPrompt(text="Solve the math word problem, show your workings.")
     prompt1 = StringTaskPrompt(text="Solve the math word problem.")
     unit0 = UnitOfEvolution(
@@ -112,7 +106,6 @@ def test_mutation_isnt_inplace():
     population = Population(members=[unit0, unit1])
 
     mutator = PromptCrossover(
-        llm=llm,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         fitness_scorer=StringLengthFitness(),
@@ -156,7 +149,6 @@ def test_mutation_isnt_inplace():
     # does nothing
 
     mutator = PromptCrossover(
-        llm=llm,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         fitness_scorer=StringLengthFitness(),

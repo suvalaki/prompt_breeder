@@ -1,5 +1,7 @@
 import pytest  # noqa: F401
-from langchain.llms import Ollama
+from typing import List, Any, Optional
+from langchain.llms.base import LLM
+from langchain.callbacks.manager import CallbackManagerForLLMRun
 from prompt_breeder.types import UnitOfEvolution, Population
 from prompt_breeder.prompts.string import (
     StringPrompt,
@@ -12,6 +14,21 @@ from prompt_breeder.mutators.zero_order_hypermutation import (
 )
 
 
+class MockPassthroughLLM(LLM):
+    @property
+    def _llm_type(self) -> str:
+        return "passthrough"
+
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> str:
+        return prompt
+
+
 class MockThinkingStyleProvider:
     def __iter__(self):
         return self
@@ -21,7 +38,7 @@ class MockThinkingStyleProvider:
 
 
 def test_runs_over_unit():
-    llm = Ollama(model="mistral")
+    llm = MockPassthroughLLM()
     prompt0 = StringTaskPrompt(text="Solve the math word problem, show your workings.")
     prompt1 = StringTaskPrompt(text="Solve the math word problem.")
     unit = UnitOfEvolution(
