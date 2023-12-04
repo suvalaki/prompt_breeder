@@ -58,7 +58,7 @@ def test_runs_over_unit():
         mutation_prompt=StringMutationPrompt(text="ignored"),
         elites=[prompt0, prompt1],
     )
-    mutator = LineageBasedMutation(
+    mutator = LineageBasedMutation.from_llm(
         llm=llm,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),

@@ -1,6 +1,5 @@
 import pytest  # noqa: F401
 from typing import Dict
-from langchain.evaluation import load_evaluator
 from langchain.evaluation.embedding_distance.base import (
     EmbeddingDistance,
 )
@@ -52,14 +51,10 @@ def test_population_sorts_by_fitness():
         mutation_prompt=StringMutationPrompt(text="make the task better."),
         elites=[],
     )
-    embed_scorer = load_evaluator(
-        "embedding_distance",
-        distance_metric=EmbeddingDistance.COSINE,
-        embeddings=embed_model,
-    )
-    mutator = EdaRankAndIndexMutation(
+    mutator = EdaRankAndIndexMutation.from_llm(
         llm=llm,
-        embed_scorer=embed_scorer,
+        embeddings=embed_model,
+        distance_metric=EmbeddingDistance.COSINE,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         threshold=0,

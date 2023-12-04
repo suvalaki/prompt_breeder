@@ -4,7 +4,13 @@ import random
 from langchain.llms.base import BaseLanguageModel
 from langchain.embeddings.base import Embeddings
 from langchain.chains.llm import LLMChain, PromptValue
-from langchain.prompts import PromptTemplate
+from langchain.prompts import (
+    PromptTemplate,
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+)
+from langchain.schema.messages import SystemMessage
+from langchain.chains.prompt_selector import ConditionalPromptSelector, is_chat_model
 from langchain.evaluation.embedding_distance.base import (
     EmbeddingDistance,
     EmbeddingDistanceEvalChain,
@@ -20,6 +26,25 @@ from prompt_breeder.types import (
 from prompt_breeder.mutators.base import DistributionEstimationMutator
 
 
+BASE_TEMPLATE = PromptTemplate.from_template("{task_prompt_set}  INSTRUCTION MUTATNT: ")
+CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
+    [
+        SystemMessage(
+            content="You are a meta heuristic assisting in the development of "
+            "better instructions to complete a task. Generate a new improved "
+            "insutrction mutant to complete the task."
+        ),
+        HumanMessagePromptTemplate.from_template(
+            "{task_prompt_set}  INSTRUCTION MUTATNT: "
+        ),
+    ]
+)
+PROMPT_SELECTOR = ConditionalPromptSelector(
+    default_prompt=BASE_TEMPLATE,
+    conditionals=[(is_chat_model, CHAT_TEMPLATE)],
+)
+
+
 class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
     """We generate the initial task-prompts by concatenating (for each task-
     prompt) a randomly drawn ‘mutation-prompt’ (e.g. "Make a variant of the prompt.")
@@ -28,9 +53,6 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
     resulting in an initial task-prompt
     """
 
-    prompt: PromptTemplate = PromptTemplate.from_template(
-        "{task_prompt_set}  INSTRUCTION MUTATNT: "
-    )
     embed_scorer: EmbeddingDistanceEvalChain
     threshold: float = 0.05  # distance between the keys
 
@@ -48,6 +70,7 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
             task_prompt_factory=task_prompt_factory,
             mutation_prompt_factory=mutation_prompt_factory,
             llm=llm,
+            prompt=PROMPT_SELECTOR.get_prompt(llm),
             embed_scorer=EmbeddingDistanceEvalChain(
                 embeddings=embeddings, distance_metric=distance_metric, **kwargs
             ),

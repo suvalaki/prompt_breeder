@@ -1,12 +1,43 @@
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Callable
 
+from langchain.llms.base import BaseLanguageModel
 from langchain.chains.llm import LLMChain, PromptValue
-from langchain.prompts import PromptTemplate
+from langchain.prompts import (
+    PromptTemplate,
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+)
+from langchain.schema.messages import SystemMessage
+from langchain.chains.prompt_selector import ConditionalPromptSelector, is_chat_model
 from langchain.callbacks.manager import (
     CallbackManagerForChainRun,
 )
 
+from prompt_breeder.types import MutationPrompt, TaskPrompt
 from prompt_breeder.mutators.base import DistributionEstimationMutator
+
+
+BASE_TEMPLATE = PromptTemplate.from_template(
+    "INSTRUCTION GENOTYPES FOUND IN ASCENDING ORDER OF QUALITY"
+    "\n{elites}\nINSTRUCTION: "
+)
+CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
+    [
+        SystemMessage(
+            content="You are a meta heuristic assisting in the development of "
+            "better instructions to complete a task. Generate a new improved "
+            "insutrction mutant to complete the task."
+        ),
+        HumanMessagePromptTemplate.from_template(
+            "INSTRUCTION GENOTYPES FOUND IN ASCENDING ORDER OF QUALITY"
+            "\n{elites}\nINSTRUCTION: "
+        ),
+    ]
+)
+PROMPT_SELECTOR = ConditionalPromptSelector(
+    default_prompt=BASE_TEMPLATE,
+    conditionals=[(is_chat_model, CHAT_TEMPLATE)],
+)
 
 
 # Lineage based mutation will only function if the elites are filled in.
@@ -21,10 +52,21 @@ class LineageBasedMutation(LLMChain, DistributionEstimationMutator):
     produce a novel prompt as continuation.
     """
 
-    prompt: PromptTemplate = PromptTemplate.from_template(
-        "INSTRUCTION GENOTYPES FOUND IN ASCENDING ORDER OF QUALITY"
-        "\n{elites}\nINSTRUCTION: "
-    )
+    @classmethod
+    def from_llm(
+        cls,
+        mutation_prompt_factory: Callable[[str], MutationPrompt],
+        task_prompt_factory: Callable[[str], TaskPrompt],
+        llm: BaseLanguageModel,
+        **kwargs
+    ):
+        return cls(
+            llm=llm,
+            prompt=PROMPT_SELECTOR.get_prompt(llm),
+            mutation_prompt_factory=mutation_prompt_factory,
+            task_prompt_factory=task_prompt_factory,
+            **kwargs,
+        )
 
     def prep_prompts(
         self,

@@ -1,7 +1,14 @@
-from typing import Iterator
+from typing import Iterator, Callable
 from copy import deepcopy
+from langchain.llms.base import BaseLanguageModel
 from langchain.chains.llm import LLMChain
-from langchain.prompts import PromptTemplate
+from langchain.prompts import (
+    PromptTemplate,
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+)
+from langchain.schema.messages import SystemMessage
+from langchain.chains.prompt_selector import ConditionalPromptSelector, is_chat_model
 
 from prompt_breeder.types import (
     Phenotype,
@@ -9,8 +16,33 @@ from prompt_breeder.types import (
     Population,
 )
 from prompt_breeder.mutators.base import Mutator
+from prompt_breeder.types import MutationPrompt, TaskPrompt
 
 # from langchain.prompts.example_selector.base import BaseExampleSelector
+
+BASE_TEMPLATE = PromptTemplate.from_template(
+    "I gave a friend an instruction and some advice. "
+    "Here are the correct examples of his workings out: \n{context}\n"
+    "The instruction was: "
+)
+CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
+    [
+        SystemMessage(
+            content="You are a meta heuristic assisting in the development of "
+            "better instructions to complete a task. Generate a new improved "
+            "insutrction mutant to complete the task."
+        ),
+        HumanMessagePromptTemplate.from_template(
+            "I gave a friend an instruction and some advice. "
+            "Here are the correct examples of his workings out: \n{context}\n"
+            "The instruction was: "
+        ),
+    ]
+)
+PROMPT_SELECTOR = ConditionalPromptSelector(
+    default_prompt=BASE_TEMPLATE,
+    conditionals=[(is_chat_model, CHAT_TEMPLATE)],
+)
 
 
 # Lamarkin Operator
@@ -27,11 +59,21 @@ class WorkingOutToTask(LLMChain, Mutator):
     correct_working_out_provider: Iterator[Phenotype]
     max_context_size: int = 2
 
-    prompt: PromptTemplate = PromptTemplate.from_template(
-        "I gave a friend an instruction and some advice. "
-        "Here are the correct examples of his workings out: \n{context}\n"
-        "The instruction was: "
-    )
+    @classmethod
+    def from_llm(
+        cls,
+        mutation_prompt_factory: Callable[[str], MutationPrompt],
+        task_prompt_factory: Callable[[str], TaskPrompt],
+        llm: BaseLanguageModel,
+        **kwargs
+    ):
+        return cls(
+            llm=llm,
+            prompt=PROMPT_SELECTOR.get_prompt(llm),
+            mutation_prompt_factory=mutation_prompt_factory,
+            task_prompt_factory=task_prompt_factory,
+            **kwargs
+        )
 
     def mutate(
         self, population: Population, unit: UnitOfEvolution, **kwargs

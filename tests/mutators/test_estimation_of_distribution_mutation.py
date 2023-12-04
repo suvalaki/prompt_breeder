@@ -92,9 +92,10 @@ def test_same_string_is_filtered():
         prediction=str(prompt0),
         reference=str(prompt1),
     )
-    mutator = EstimationOfDistributionMutation(
+    mutator = EstimationOfDistributionMutation.from_llm(
         llm=llm,
-        embed_scorer=scorer,
+        embeddings=embed_model,
+        distance_metric=EmbeddingDistance.EUCLIDEAN,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         verbose=1,
@@ -126,9 +127,10 @@ def test_different_string_is_not_filtered():
         prediction=str(prompt0),
         reference=str(prompt1),
     )
-    mutator = EstimationOfDistributionMutation(
+    mutator = EstimationOfDistributionMutation.from_llm(
         llm=llm,
-        embed_scorer=scorer,
+        embeddings=embed_model,
+        distance_metric=EmbeddingDistance.EUCLIDEAN,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         verbose=1,
@@ -160,9 +162,10 @@ def test_runs_over_unit():
         prediction=str(prompt0),
         reference=str(prompt1),
     )
-    mutator = EstimationOfDistributionMutation(
+    mutator = EstimationOfDistributionMutation.from_llm(
         llm=llm,
-        embed_scorer=scorer,
+        embeddings=embed_model,
+        distance_metric=EmbeddingDistance.COSINE,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         verbose=1,

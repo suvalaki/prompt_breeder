@@ -53,7 +53,7 @@ def test_runs_over_unit():
         mutation_prompt=StringMutationPrompt(text="make the task better."),
         elites=[],
     )
-    mutator = ZeroOrderPromptGeneration(
+    mutator = ZeroOrderPromptGeneration.from_llm(
         llm=llm,
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),

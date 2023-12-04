@@ -56,7 +56,7 @@ def test_runs_over_unit():
         mutation_prompt=StringMutationPrompt(text="make the task better."),
         elites=[],
     )
-    mutator = WorkingOutToTask(
+    mutator = WorkingOutToTask.from_llm(
         mutation_prompt_factory=lambda x: StringMutationPrompt(text=x),
         task_prompt_factory=lambda x: StringTaskPrompt(text=x),
         correct_working_out_provider=MockContextProvider(),
