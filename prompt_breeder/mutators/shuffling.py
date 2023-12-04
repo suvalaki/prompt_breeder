@@ -60,6 +60,11 @@ class ContextShuffling(Mutator):
     ) -> FewShowUnitOfEvolution:
         return self.run({"unit": unit}, **kwargs)
 
+    async def amutate(  # type: ignore[override]
+        self, population: Population, unit: FewShowUnitOfEvolution, **kwargs
+    ) -> FewShowUnitOfEvolution:
+        return await self.arun({"unit": unit}, **kwargs)
+
     def _call(
         self, inputs: Dict[str, FewShowUnitOfEvolution], run_manager=None, **kwargs
     ) -> Dict[str, FewShowUnitOfEvolution]:
@@ -80,3 +85,8 @@ class ContextShuffling(Mutator):
             return {self.output_key: self.replace_single_context(unit)}
 
         return {self.output_key: deepcopy(unit)}
+
+    async def _acall(
+        self, inputs: Dict[str, FewShowUnitOfEvolution], run_manager=None, **kwargs
+    ) -> Dict[str, FewShowUnitOfEvolution]:
+        return self._call(inputs, run_manager, **kwargs)

@@ -1,5 +1,6 @@
 # Create a simple one mutator binary tourno
 import pytest  # noqa: F401
+import asyncio
 from typing import List, Any, Optional
 from langchain.llms.base import LLM
 from langchain.callbacks.manager import CallbackManagerForLLMRun
@@ -41,6 +42,9 @@ class MockPassthroughLLM(LLM):
 
 class StringLengthFitness:
     def score(self, prompt: StringTaskPrompt, **kwargs) -> int:
+        return len(str(prompt))
+
+    def ascore(self, prompt: StringTaskPrompt, **kwargs) -> int:
         return len(str(prompt))
 
 
@@ -186,4 +190,8 @@ def test_multiple_steps():
 
     evolution = EvolutionExecutor(step=evolution_step, return_intermediate_steps=True)
     ans = evolution.run({"population": population, "generations": 2})
+    assert len(ans) == 2
+
+    evolution = EvolutionExecutor(step=evolution_step, return_intermediate_steps=True)
+    ans = asyncio.run(evolution.arun({"population": population, "generations": 2}))
     assert len(ans) == 2

@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Callable, Type
 from langchain.llms.base import BaseLanguageModel
 from langchain.embeddings.base import Embeddings
@@ -79,6 +80,21 @@ class EdaRankAndIndexMutation(EstimationOfDistributionMutation):
             self.fitness_scorer.score(prompt, callbacks=cb)
             for prompt in task_prompt_set
         ]
+        pairs = list(zip(task_prompt_set, fitnesses))
+        pairs.sort(key=lambda x: x[1], reverse=True)
+        task_prompt_set[:] = [pair[0] for pair in pairs]
+
+    async def asort_population(
+        self, task_prompt_set: List[TaskPrompt], run_manager=None, **kwargs
+    ) -> None:
+        # sort by fitness
+        cb = run_manager.get_child() if run_manager else None
+        fitnesses = await asyncio.gather(
+            *[
+                self.fitness_scorer.ascore(prompt, callbacks=cb)
+                for prompt in task_prompt_set
+            ]
+        )
         pairs = list(zip(task_prompt_set, fitnesses))
         pairs.sort(key=lambda x: x[1], reverse=True)
         task_prompt_set[:] = [pair[0] for pair in pairs]

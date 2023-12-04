@@ -1,5 +1,7 @@
 from typing import Tuple, List, Dict
+import asyncio
 import random
+from tqdm import tqdm
 from copy import deepcopy
 
 from prompt_breeder.types import UnitOfEvolution, Population
@@ -44,12 +46,41 @@ class BinaryEvolution(EvolutionStep):
 
         return unit0_new, unit1_new
 
+    async def _asingle_match(
+        self,
+        population: Population,
+        unit0: UnitOfEvolution,
+        unit1: UnitOfEvolution,
+        **kwargs
+    ) -> Tuple[UnitOfEvolution, UnitOfEvolution]:
+        """Have the two units compare fitness and mutate the loser"""
+
+        unit0_new = deepcopy(unit0)
+        unit1_new = deepcopy(unit1)
+
+        unit0 = self._pre_step(population, unit0_new, **kwargs)
+        unit1 = self._pre_step(population, unit1_new, **kwargs)
+
+        fitness0 = await self.fitness_scorer.ascore(unit0_new.task_prompt_set, **kwargs)
+        fitness1 = await self.fitness_scorer.ascore(unit1_new.task_prompt_set, **kwargs)
+
+        mutator = random.choice(self.mutators)
+        if fitness0 < fitness1:
+            unit0_new = await mutator.amutate(population, unit1_new, **kwargs)
+        else:
+            unit1_new = await mutator.amutate(population, unit0_new, **kwargs)
+
+        unit0_new = self._post_step(population, unit0_new, **kwargs)
+        unit1_new = self._post_step(population, unit1_new, **kwargs)
+
+        return unit0_new, unit1_new
+
     def _call(self, inputs: Dict[str, Population], run_manager=None, **kwargs):
         cb = run_manager.get_child() if run_manager else None
         population = deepcopy(inputs["population"])
         pairs = self._assign_pairs(population)
 
-        for i, j in pairs:
+        for i, j in tqdm(pairs, leave=False, position=1):
             population.members[i], population.members[j] = self._single_match(
                 inputs["population"],
                 population.members[i],
@@ -58,4 +89,33 @@ class BinaryEvolution(EvolutionStep):
                 **kwargs
             )
 
+        return {self.output_key: population}
+
+    async def _inplace_single_match(
+        self,
+        i: int,
+        j: int,
+        inputs: Dict[str, Population],
+        population: Population,
+        run_manager=None,
+        **kwargs
+    ):
+        cb = run_manager.get_child() if run_manager else None
+        population.members[i], population.members[j] = await self._asingle_match(
+            inputs["population"],
+            population.members[i],
+            population.members[j],
+            callbacks=cb,
+            **kwargs
+        )
+
+    async def _acall(self, inputs: Dict[str, Population], run_manager=None, **kwargs):
+        population = deepcopy(inputs["population"])
+        pairs = self._assign_pairs(population)
+        asyncio.gather(
+            *[
+                self._inplace_single_match(i, j, inputs, run_manager, **kwargs)
+                for i, j in pairs
+            ]
+        )
         return {self.output_key: population}

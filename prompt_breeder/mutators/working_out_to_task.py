@@ -1,4 +1,5 @@
-from typing import Iterator, Callable
+import asyncio
+from typing import Iterator, Callable, List
 from copy import deepcopy
 from langchain.llms.base import BaseLanguageModel
 from langchain.chains.llm import LLMChain
@@ -95,4 +96,27 @@ class WorkingOutToTask(LLMChain, Mutator):
             )
             for member in unit.task_prompt_set
         ]
+        return unit
+
+    async def _asingleton_task_prompt(self, examples: List[Phenotype], **kwargs):
+        return self.task_prompt_factory(
+            await self.arun(
+                {
+                    "context": "\n\n".join([str(example) for example in examples]),
+                },
+                **kwargs
+            )
+        )
+
+    async def amutate(
+        self, population: Population, unit: UnitOfEvolution, **kwargs
+    ) -> UnitOfEvolution:
+        unit = deepcopy(unit)
+        examples = [
+            next(self.correct_working_out_provider)
+            for i in range(self.max_context_size)
+        ]
+        unit.task_prompt_set = await asyncio.gather(
+            *[self._asingleton_task_prompt(examples) for member in unit.task_prompt_set]
+        )
         return unit

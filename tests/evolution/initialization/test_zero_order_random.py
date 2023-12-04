@@ -1,4 +1,5 @@
 import pytest  # noqa: F401
+import asyncio
 from typing import List, Any, Optional
 from langchain.llms.base import LLM
 from langchain.callbacks.manager import CallbackManagerForLLMRun
@@ -84,6 +85,11 @@ def test_creates_requuired_different_initial_thinking_styles():
     )
     ans = initializer.initialize(problem_description="Solve the math word problem")
     assert len(ans.task_prompt_set) == 3
+
+    ans = asyncio.run(
+        initializer.ainitialize(problem_description="Solve the math word problem")
+    )
+    assert len(ans.task_prompt_set) == 3
     # TODO: Fix using MOCK Model
     # assert all(
     #    [x != y for x in ans.task_prompt_set for
@@ -112,3 +118,8 @@ def test_population():
     # TODO: Fix using MOCK Model
     # validate that each LLM call gets a different starting point
     # assert all([x != y for x in ans.members for y in ans.members if x is not y])
+
+    ans = asyncio.run(
+        pop_initializer.ainitialize(problem_description="Solve the math word problem")
+    )
+    assert len(ans.members) == 2

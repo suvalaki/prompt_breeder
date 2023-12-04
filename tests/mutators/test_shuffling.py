@@ -1,4 +1,5 @@
 import pytest  # noqa: F401
+import asyncio
 from prompt_breeder.types import FewShowUnitOfEvolution, Population
 from prompt_breeder.prompts.string import (
     StringPrompt,
@@ -120,6 +121,12 @@ def test_replace_one():
 
     context0 = unit.contexts
     ans = mutator.mutate(population, unit)
+    context1 = ans.contexts
+
+    assert all([x not in y for x in context0 for y in context1])
+
+    context0 = unit.contexts
+    ans = asyncio.run(mutator.amutate(population, unit))
     context1 = ans.contexts
 
     assert all([x not in y for x in context0 for y in context1])

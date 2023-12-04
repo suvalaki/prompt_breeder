@@ -1,4 +1,5 @@
 import pytest  # noqa: F401
+import asyncio
 from typing import Any, List, Optional, Mapping
 from langchain.llms.base import LLM
 from langchain.callbacks.manager import CallbackManagerForLLMRun
@@ -61,3 +62,5 @@ def test_runs_over_unit():
     )
     population = Population(members=[unit])
     mutator.mutate(population, unit)
+
+    asyncio.run(mutator.amutate(population, unit))

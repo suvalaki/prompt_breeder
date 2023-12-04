@@ -11,6 +11,7 @@ from langchain.schema.messages import SystemMessage
 from langchain.chains.prompt_selector import ConditionalPromptSelector, is_chat_model
 from langchain.callbacks.manager import (
     CallbackManagerForChainRun,
+    AsyncCallbackManagerForChainRun,
 )
 
 from prompt_breeder.types import MutationPrompt, TaskPrompt
@@ -83,3 +84,19 @@ class LineageBasedMutation(LLMChain, DistributionEstimationMutator):
             )
 
         return super().prep_prompts(input_list, run_manager)
+
+    async def aprep_prompts(
+        self,
+        input_list: List[Dict[str, Any]],
+        run_manager: Optional[AsyncCallbackManagerForChainRun] = None,
+    ) -> Tuple[List[PromptValue], Optional[List[str]]]:
+        stop = None
+        if len(input_list) == 0:
+            return [], stop
+
+        for inputs in input_list:
+            inputs["elites"] = "\n".join(
+                ["INSTRUCTION: " + str(x) for x in inputs["elites"]]
+            )
+
+        return await super().aprep_prompts(input_list, run_manager)

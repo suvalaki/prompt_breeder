@@ -1,4 +1,5 @@
 import pytest  # noqa: F401
+import asyncio
 from prompt_breeder.types import UnitOfEvolution, Population
 from prompt_breeder.prompts.string import (
     StringPrompt,
@@ -15,6 +16,9 @@ from prompt_breeder.evolution.fitness import Fitness
 
 class StringLengthFitness(Fitness):
     def score(self, prompt: StringTaskPrompt, **kwargs) -> int:
+        return len(str(prompt))
+
+    async def ascore(self, prompt: StringTaskPrompt, **kwargs) -> int:
         return len(str(prompt))
 
 
@@ -144,6 +148,10 @@ def test_mutation_isnt_inplace():
         )
         == len(unit0.task_prompt_set) - 1
     )
+
+    mutant = asyncio.run(mutator.amutate(population, unit0))
+    assert all([mutant is not unit0, mutant is not unit1])
+    assert all([mutant is not x for x in population.members])
 
     # Check setting probability to zero correctly means the mutator
     # does nothing

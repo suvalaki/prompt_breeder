@@ -17,6 +17,7 @@ from langchain.evaluation.embedding_distance.base import (
 )
 from langchain.callbacks.manager import (
     CallbackManagerForChainRun,
+    AsyncCallbackManagerForChainRun,
 )
 
 from prompt_breeder.types import (
@@ -117,6 +118,23 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
 
         return filtered_pop
 
+    def _singleton_prompt_prep(
+        self,
+        inputs: Dict[str, Any],
+        run_manager: Optional[
+            CallbackManagerForChainRun | AsyncCallbackManagerForChainRun
+        ] = None,
+    ) -> None:
+        filtered_pop = self.filter_population(
+            inputs["task_prompt_set"],
+            run_manager.get_child() if run_manager else None,
+        )
+        self.sort_population(filtered_pop)
+        filtered_pop_str = "  ".join(
+            [f"INSTRUCTION: {str(task_prompt)}" for task_prompt in filtered_pop]
+        )
+        inputs["task_prompt_set"] = filtered_pop_str
+
     def prep_prompts(
         self,
         input_list: List[Dict[str, Any]],
@@ -129,14 +147,22 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
 
         # unpack the filtered population
         for inputs in input_list:
-            filtered_pop = self.filter_population(
-                inputs["task_prompt_set"],
-                run_manager.get_child() if run_manager else None,
-            )
-            self.sort_population(filtered_pop)
-            filtered_pop_str = "  ".join(
-                [f"INSTRUCTION: {str(task_prompt)}" for task_prompt in filtered_pop]
-            )
-            inputs["task_prompt_set"] = filtered_pop_str
+            self._singleton_prompt_prep(inputs, run_manager)
 
         return super().prep_prompts(input_list, run_manager)
+
+    async def aprep_prompts(
+        self,
+        input_list: List[Dict[str, Any]],
+        run_manager: Optional[AsyncCallbackManagerForChainRun] = None,
+    ) -> Tuple[List[PromptValue], Optional[List[str]]]:
+        stop = None
+
+        if len(input_list) == 0:
+            return [], stop
+
+        # unpack the filtered population
+        for inputs in input_list:
+            self._singleton_prompt_prep(inputs, run_manager)
+
+        return await super().aprep_prompts(input_list, run_manager)

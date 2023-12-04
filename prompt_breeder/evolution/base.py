@@ -1,4 +1,5 @@
 from typing import List, Any, Dict, Callable
+from tqdm import tqdm
 
 from langchain.chains.base import Chain
 
@@ -62,7 +63,7 @@ class EvolutionExecutor(Chain):
             intermediate_steps = []
 
         population = inputs["population"]
-        for i in range(inputs["generations"]):
+        for i in tqdm(range(inputs["generations"])):
             population = self.step.run(
                 {"population": population}, callbacks=cb, **kwargs
             )
@@ -76,8 +77,26 @@ class EvolutionExecutor(Chain):
             return {self.output_key: intermediate_steps}
         return {self.output_key: population}
 
-    def _acall(self, inputs: Dict[str, Any], run_manager=None, **kwargs):
-        raise NotImplementedError()
+    async def _acall(self, inputs: Dict[str, Any], run_manager=None, **kwargs):
+        cb = run_manager.get_child() if run_manager else None
+
+        if self.return_intermediate_steps:
+            intermediate_steps = []
+
+        population = inputs["population"]
+        for i in tqdm(range(inputs["generations"])):
+            population = await self.step.arun(
+                {"population": population}, callbacks=cb, **kwargs
+            )
+
+            if self.return_intermediate_steps:
+                intermediate_steps += [population]
+
+            self._post_step(population, callback=cb, **kwargs)
+
+        if self.return_intermediate_steps:
+            return {self.output_key: intermediate_steps}
+        return {self.output_key: population}
 
     def _post_step(self, population: Population, **kwargs):
         self.post_step_callback(population, **kwargs)

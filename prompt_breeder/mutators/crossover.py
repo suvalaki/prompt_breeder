@@ -53,6 +53,11 @@ class PromptCrossover(Mutator):
     ) -> UnitOfEvolution:
         return self.run({"population": population, "unit": unit}, **kwargs)
 
+    async def amutate(
+        self, population: Population, unit: UnitOfEvolution, **kwargs
+    ) -> UnitOfEvolution:
+        return await self.arun({"population": population, "unit": unit}, **kwargs)
+
     def _call(
         self, inputs: Dict[str, Any], run_manager=None, **kwargs
     ) -> Dict[str, UnitOfEvolution]:

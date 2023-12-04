@@ -1,4 +1,5 @@
 import pytest  # noqa: F401
+import asyncio
 from typing import Dict, List, Any, Optional
 from langchain.llms.base import LLM
 from langchain.embeddings.base import Embeddings
@@ -172,3 +173,4 @@ def test_runs_over_unit():
     )
     population = Population(members=[unit])
     _ = mutator.mutate(population, unit)
+    _ = asyncio.run(mutator.amutate(population, unit))

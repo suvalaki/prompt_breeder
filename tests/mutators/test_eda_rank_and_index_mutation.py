@@ -1,4 +1,5 @@
 import pytest  # noqa: F401
+import asyncio
 from typing import Dict
 from langchain.evaluation.embedding_distance.base import (
     EmbeddingDistance,
@@ -33,6 +34,9 @@ FIXED_SCORES: Dict[str, float] = {
 class FixedScoreFitness(Fitness):
     def score(self, prompt: StringTaskPrompt, **kwargs) -> int:
         return int(FIXED_SCORES[str(prompt)])
+
+    async def ascore(self, prompt: StringTaskPrompt, **kwargs) -> int:
+        return self.score(prompt, **kwargs)
 
 
 def test_population_sorts_by_fitness():
@@ -70,6 +74,15 @@ def test_population_sorts_by_fitness():
     assert pop[0] == prompt1
     assert pop[1] == prompt0
     # we have reversed the order
+
+    pop = [prompt0, prompt1]
+    asyncio.run(mutator.asort_population(pop))
+
+    # Prompt 0 and 1 should be sufficiently different (as the threshold is zero)
+    # Because promp1 is larger than prompt0 it should have a higher fitness
+    assert len(pop) == 2
+    assert pop[0] == prompt1
+    assert pop[1] == prompt0
 
 
 def test_runs_over_unit():
