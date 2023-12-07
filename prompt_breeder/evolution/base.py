@@ -45,7 +45,9 @@ class EvolutionExecutor(Chain):
 
     step: EvolutionStep
     return_intermediate_steps: bool = False
-    post_step_callback: Callable[[Population], None] = lambda x, **k: None
+    post_step_callback: List[Callable[[Population], None]] | Callable[
+        [Population], None
+    ] | None = None
     output_key: str = "output"
 
     @property
@@ -99,4 +101,10 @@ class EvolutionExecutor(Chain):
         return {self.output_key: population}
 
     def _post_step(self, population: Population, **kwargs):
-        self.post_step_callback(population, **kwargs)
+        if not self.post_step_callback:
+            return
+        if isinstance(self.post_step_callback, list):
+            for cb in self.post_step_callback:
+                cb(population, **kwargs)
+        else:
+            self.post_step_callback(population, **kwargs)

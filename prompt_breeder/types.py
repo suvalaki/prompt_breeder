@@ -112,3 +112,5 @@ class Population(BaseModel):
     elites: List[TaskPrompt] = []
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    age: int = 0
