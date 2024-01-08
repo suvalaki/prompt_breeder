@@ -6,9 +6,8 @@ from langchain.chains.llm import LLMChain
 from langchain.prompts import (
     PromptTemplate,
     ChatPromptTemplate,
-    HumanMessagePromptTemplate,
+    SystemMessagePromptTemplate,
 )
-from langchain.schema.messages import SystemMessage
 from langchain.chains.prompt_selector import ConditionalPromptSelector, is_chat_model
 
 from prompt_breeder.types import (
@@ -28,15 +27,13 @@ BASE_TEMPLATE = PromptTemplate.from_template(
 )
 CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
     [
-        SystemMessage(
-            content="You are a meta heuristic assisting in the development of "
-            "better instructions to complete a task. Generate a new improved "
-            "insutrction mutant to complete the task."
-        ),
-        HumanMessagePromptTemplate.from_template(
-            "I gave a friend an instruction and some advice. "
-            "Here are the correct examples of his workings out: \n{context}\n"
-            "The instruction was: "
+        SystemMessagePromptTemplate.from_template(
+            "You are assisting in the creation of a generic problem description "
+            "to be applied over multiple questions.\n\n"
+            "A student was provided with a probelm description and some advice. "
+            "Here are several examples of correct workings out: \n{context}\n\n"
+            "What was the generic problem description and advice which is "
+            "applicable to all examples?"
         ),
     ]
 )
@@ -48,23 +45,22 @@ PROMPT_SELECTOR = ConditionalPromptSelector(
 
 # Lamarkin Operator
 class WorkingOutToTask(LLMChain, Mutator):
-    """Fill up a few-shot context with only workings out that led to correct answers.
-    During evaluation we provide this few shot-context before the task-prompt, providing
-    guidance as to the form of the working out that is desired. If the few-shot context
-    list is full, a single randomly sampled new correct working out replaces an existing
-    working out from the list after fitness evaluation of a unit on a new set of
-    questions. In addition, with a 10% chance we resample the whole context list with
-    probability inverse to the maximum context list length"""
+    """We give an LLM a previously generated working out that led to a correct answer
+    via the following prompt: "I gave a friend an instruction and some advice. Here
+    are the correct examples of his workings out + <<correct working out>> +
+    The instruction was:". This is effectively reverse-engineering the task-prompt from
+    a given working out."""
 
     # Get new correct workings
     correct_working_out_provider: Iterator[Phenotype]
-    max_context_size: int = 2
+    max_context_size: int = 5
 
     @classmethod
     def from_llm(
         cls,
         mutation_prompt_factory: Callable[[str], MutationPrompt],
         task_prompt_factory: Callable[[str], TaskPrompt],
+        correct_working_out_provider: Iterator[Phenotype],
         llm: BaseLanguageModel,
         **kwargs
     ):
@@ -73,6 +69,7 @@ class WorkingOutToTask(LLMChain, Mutator):
             prompt=PROMPT_SELECTOR.get_prompt(llm),
             mutation_prompt_factory=mutation_prompt_factory,
             task_prompt_factory=task_prompt_factory,
+            correct_working_out_provider=correct_working_out_provider,
             **kwargs
         )
 
@@ -89,7 +86,9 @@ class WorkingOutToTask(LLMChain, Mutator):
             self.task_prompt_factory(
                 self.run(
                     {
-                        "context": "\n\n".join([str(example) for example in examples]),
+                        "context": "\n\n".join(
+                            ["EXAMPLE: " + str(example) for example in examples]
+                        ),
                     },
                     **kwargs
                 )
@@ -102,7 +101,9 @@ class WorkingOutToTask(LLMChain, Mutator):
         return self.task_prompt_factory(
             await self.arun(
                 {
-                    "context": "\n\n".join([str(example) for example in examples]),
+                    "context": "\n\n".join(
+                        ["EXAMPLE: " + str(example) for example in examples]
+                    ),
                 },
                 **kwargs
             )

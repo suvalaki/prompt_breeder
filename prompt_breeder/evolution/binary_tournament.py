@@ -1,10 +1,12 @@
 from typing import Tuple, List, Dict
 import asyncio
+import tqdm
+import tqdm.asyncio
 import random
-from tqdm import tqdm
 from copy import deepcopy
 
 from prompt_breeder.types import UnitOfEvolution, Population
+from prompt_breeder.mutators.base import Mutator
 from prompt_breeder.evolution.base import EvolutionStep
 
 
@@ -16,6 +18,24 @@ class BinaryEvolution(EvolutionStep):
         random_members = random.sample(members_idx[:elements], k=elements)
         pairs = list(zip(random_members[0::2], random_members[1::2]))
         return pairs
+
+    def _get_mutator(self) -> Mutator:
+        mutator = random.choice(self.mutators)
+        print("MUTATOR")
+        print(type(mutator))
+        return mutator
+
+    def _mutate(
+        self, mutator: Mutator, population: Population, unit: UnitOfEvolution, **kwargs
+    ) -> UnitOfEvolution:
+        mutant = mutator.mutate(population, unit, **kwargs)
+        return mutant
+
+    async def _amutate(
+        self, mutator: Mutator, population: Population, unit: UnitOfEvolution, **kwargs
+    ) -> UnitOfEvolution:
+        mutant = await mutator.amutate(population, unit, **kwargs)
+        return mutant
 
     def _single_match(
         self,
@@ -35,14 +55,14 @@ class BinaryEvolution(EvolutionStep):
         fitness0 = self.fitness_scorer.score(unit0_new.task_prompt_set, **kwargs)
         fitness1 = self.fitness_scorer.score(unit1_new.task_prompt_set, **kwargs)
 
-        mutator = random.choice(self.mutators)
         if fitness0 < fitness1:
-            unit0_new = mutator.mutate(population, unit1_new, **kwargs)
+            unit0_new = self.mutate(population, unit1_new, **kwargs).mutant
+            unit0_new = self._post_step(population, unit0_new, **kwargs)
+            unit1_new = self._post_step(population, unit1_new, **kwargs)
         else:
-            unit1_new = mutator.mutate(population, unit0_new, **kwargs)
-
-        unit0_new = self._post_step(population, unit0_new, **kwargs)
-        unit1_new = self._post_step(population, unit1_new, **kwargs)
+            unit1_new = self.mutate(population, unit0_new, **kwargs).mutant
+            unit0_new = self._post_step(population, unit0_new, **kwargs)
+            unit1_new = self._post_step(population, unit1_new, **kwargs)
 
         return unit0_new, unit1_new
 
@@ -64,14 +84,12 @@ class BinaryEvolution(EvolutionStep):
         fitness0 = await self.fitness_scorer.ascore(unit0_new.task_prompt_set, **kwargs)
         fitness1 = await self.fitness_scorer.ascore(unit1_new.task_prompt_set, **kwargs)
 
-        mutator = random.choice(self.mutators)
         if fitness0 < fitness1:
-            unit0_new = await mutator.amutate(population, unit1_new, **kwargs)
+            unit0_new = (await self.amutate(population, unit1_new, **kwargs)).mutant
+            unit0_new = self._post_step(population, unit0_new, **kwargs)
         else:
-            unit1_new = await mutator.amutate(population, unit0_new, **kwargs)
-
-        unit0_new = self._post_step(population, unit0_new, **kwargs)
-        unit1_new = self._post_step(population, unit1_new, **kwargs)
+            unit1_new = (await self.amutate(population, unit0_new, **kwargs)).mutant
+            unit1_new = self._post_step(population, unit1_new, **kwargs)
 
         return unit0_new, unit1_new
 
@@ -80,7 +98,7 @@ class BinaryEvolution(EvolutionStep):
         population = deepcopy(inputs["population"])
         pairs = self._assign_pairs(population)
 
-        for i, j in tqdm(pairs, leave=False, position=1):
+        for i, j in tqdm.tqdm(pairs, leave=False, position=1):
             population.members[i], population.members[j] = self._single_match(
                 inputs["population"],
                 population.members[i],
@@ -112,9 +130,11 @@ class BinaryEvolution(EvolutionStep):
     async def _acall(self, inputs: Dict[str, Population], run_manager=None, **kwargs):
         population = deepcopy(inputs["population"])
         pairs = self._assign_pairs(population)
-        asyncio.gather(
+        await asyncio.gather(
             *[
-                self._inplace_single_match(i, j, inputs, run_manager, **kwargs)
+                self._inplace_single_match(
+                    i, j, inputs, population, run_manager, **kwargs
+                )
                 for i, j in pairs
             ]
         )

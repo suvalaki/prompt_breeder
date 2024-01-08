@@ -44,7 +44,7 @@ class StringLengthFitness:
     def score(self, prompt: StringTaskPrompt, **kwargs) -> int:
         return len(str(prompt))
 
-    def ascore(self, prompt: StringTaskPrompt, **kwargs) -> int:
+    async def ascore(self, prompt: StringTaskPrompt, **kwargs) -> int:
         return len(str(prompt))
 
 

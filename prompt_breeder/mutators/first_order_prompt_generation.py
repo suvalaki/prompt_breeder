@@ -4,9 +4,8 @@ from langchain.llms.base import BaseLanguageModel
 from langchain.prompts import (
     PromptTemplate,
     ChatPromptTemplate,
-    HumanMessagePromptTemplate,
+    SystemMessagePromptTemplate,
 )
-from langchain.schema.messages import SystemMessage
 from langchain.chains.prompt_selector import ConditionalPromptSelector, is_chat_model
 
 from prompt_breeder.types import MutationPrompt, TaskPrompt
@@ -18,13 +17,9 @@ BASE_TEMPLATE = PromptTemplate.from_template(
 )
 CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
     [
-        SystemMessage(
-            content="You are a meta heuristic assisting in the development of "
-            "better instructions to complete a task. Generate a new improved "
-            "instruction mutant to complete the task."
-        ),
-        HumanMessagePromptTemplate.from_template(
-            "{mutation_prompt}  INSTRUCTION: {task_prompt}  INSTRUCTION MUTATNT: "
+        SystemMessagePromptTemplate.from_template(
+            "{mutation_prompt}  INSTRUCTION: {task_prompt}\n"
+            "Only reply with the modified instruction"
         ),
     ]
 )

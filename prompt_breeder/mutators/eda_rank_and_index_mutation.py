@@ -31,6 +31,7 @@ CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
             content="You are a meta heuristic assisting in the development of "
             "better instructions to complete a task. Generate a new improved "
             "insutrction mutant to complete the task."
+            "Only reply with the improved instruction and nothing else."
         ),
         HumanMessagePromptTemplate.from_template(
             "INSTRUCTION: {mutation_prompt}"

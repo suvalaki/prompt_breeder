@@ -4,9 +4,8 @@ from langchain.chains.llm import LLMChain
 from langchain.prompts import (
     PromptTemplate,
     ChatPromptTemplate,
-    HumanMessagePromptTemplate,
+    SystemMessagePromptTemplate,
 )
-from langchain.schema.messages import SystemMessage
 from langchain.chains.prompt_selector import ConditionalPromptSelector, is_chat_model
 from langchain.output_parsers.regex import RegexParser
 
@@ -19,14 +18,12 @@ BASE_TEMPLATE = PromptTemplate.from_template(
 )
 CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
     [
-        SystemMessage(
-            content="You are a meta heuristic assisting in the development of "
-            "better instructions to complete a task. Generate a new improved "
-            "insutrction mutant to complete the task. Reply only with an ordered "
-            "list of 100 hints."
-        ),
-        HumanMessagePromptTemplate.from_template(
-            "{problem_description} An ordered list of 100 hints: "
+        SystemMessagePromptTemplate.from_template(
+            "Act as a expert improving a problem description.\n"
+            "Generate a new improved hint to complete the task. "
+            "Reply only with an ordered list of 10 hints. "
+            "For example: '1. ..., 2. ..., 3. ...'.\n\n"
+            "TASK: {problem_description}"
         ),
     ]
 )
@@ -41,11 +38,17 @@ class SingleRegexParser(RegexParser):
     comming in a dict."""
 
     output_key: str = "output"
-    output_keys: List[str] = ["output"]
+    output_keys: List[str] = ["_0", "_1", "output"]
 
     def parse(self, text: str) -> str:  # type: ignore
         try:
-            return super().parse(text)[self.output_key]
+            parsed = super().parse(text)
+            val = parsed[self.output_key]
+            while val.startswith(" "):
+                val = val[1:]
+            while val.endswith("\n"):
+                val = val[:-2]
+            return val
         except Exception:
             return ""
 
@@ -56,7 +59,9 @@ class ZeroOrderPromptGeneration(LLMChain, DirectMutator):
     with the prompt "A list of 100 hints:", which invites the LLM to come up with
     a new hint that could help solve a problem in the given problem domain."""
 
-    output_parser: SingleRegexParser = SingleRegexParser(regex=r"1\.((.|\n)*?)2\.")
+    output_parser: SingleRegexParser = SingleRegexParser(
+        regex=r"((.|\n)*1\.)((.|\n)*?)2\."
+    )
 
     @classmethod
     def from_llm(

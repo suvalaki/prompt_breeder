@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Optional, Tuple, Callable, Type
+import asyncio
 import random
 
 from langchain.llms.base import BaseLanguageModel
@@ -33,7 +34,8 @@ CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
         SystemMessage(
             content="You are a meta heuristic assisting in the development of "
             "better instructions to complete a task. Generate a new improved "
-            "insutrction mutant to complete the task."
+            "insutrction mutant to complete the task. "
+            "Only reply with the improved instruction and nothing else."
         ),
         HumanMessagePromptTemplate.from_template(
             "{task_prompt_set}  INSTRUCTION MUTATNT: "
@@ -88,10 +90,24 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
         # Random shuffle
         random.shuffle(task_prompt_set)
 
+    async def asort_population(
+        self, task_prompt_set: List[TaskPrompt], run_manager=None, **kwargs
+    ) -> None:
+        # Random shuffle
+        random.shuffle(task_prompt_set)
+
     def _validate_score_single(
         self, p0: TaskPrompt, p1: TaskPrompt, callbacks, **kwargs
     ):
         score = self.embed_scorer.evaluate_strings(
+            prediction=str(p0), reference=str(p1), callbacks=callbacks, **kwargs
+        )
+        return abs(score["score"]) < self.threshold
+
+    async def _avalidate_score_single(
+        self, p0: TaskPrompt, p1: TaskPrompt, callbacks, **kwargs
+    ):
+        score = await self.embed_scorer.aevaluate_strings(
             prediction=str(p0), reference=str(p1), callbacks=callbacks, **kwargs
         )
         return abs(score["score"]) < self.threshold
@@ -118,6 +134,23 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
 
         return filtered_pop
 
+    async def afilter_population(
+        self, task_prompt_set: List[TaskPrompt], callbacks=None, **kwargs
+    ) -> List[TaskPrompt]:
+        filtered_pop: List[TaskPrompt] = []
+        for i, p0 in enumerate(task_prompt_set):
+            if not any(
+                await asyncio.gather(
+                    *[
+                        self._avalidate_score_single(p0, p1, callbacks, **kwargs)
+                        for p1 in filtered_pop
+                    ]
+                )
+            ):
+                filtered_pop += [p0]
+
+        return filtered_pop
+
     def _singleton_prompt_prep(
         self,
         inputs: Dict[str, Any],
@@ -130,6 +163,23 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
             run_manager.get_child() if run_manager else None,
         )
         self.sort_population(filtered_pop)
+        filtered_pop_str = "  ".join(
+            [f"INSTRUCTION: {str(task_prompt)}" for task_prompt in filtered_pop]
+        )
+        inputs["task_prompt_set"] = filtered_pop_str
+
+    async def _asingleton_prompt_prep(
+        self,
+        inputs: Dict[str, Any],
+        run_manager: Optional[
+            CallbackManagerForChainRun | AsyncCallbackManagerForChainRun
+        ] = None,
+    ) -> None:
+        filtered_pop = await self.afilter_population(
+            inputs["task_prompt_set"],
+            run_manager.get_child() if run_manager else None,
+        )
+        await self.asort_population(filtered_pop)
         filtered_pop_str = "  ".join(
             [f"INSTRUCTION: {str(task_prompt)}" for task_prompt in filtered_pop]
         )
@@ -163,6 +213,6 @@ class EstimationOfDistributionMutation(LLMChain, DistributionEstimationMutator):
 
         # unpack the filtered population
         for inputs in input_list:
-            self._singleton_prompt_prep(inputs, run_manager)
+            await self._asingleton_prompt_prep(inputs, run_manager)
 
         return await super().aprep_prompts(input_list, run_manager)

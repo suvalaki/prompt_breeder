@@ -138,6 +138,8 @@ def test_different_string_is_not_filtered():
     )
     ans = mutator.filter_population([prompt0, prompt1])
     assert len(ans) == 2
+    ans = asyncio.run(mutator.afilter_population([prompt0, prompt1]))
+    assert len(ans) == 2
 
 
 def test_runs_over_unit():

@@ -1,6 +1,8 @@
 from typing import List, Any, Dict, Callable
 from tqdm import tqdm
+from abc import abstractmethod
 
+from pydantic import BaseModel, ConfigDict
 from langchain.chains.base import Chain
 
 from prompt_breeder.types import UnitOfEvolution, Population
@@ -10,11 +12,20 @@ from prompt_breeder.evolution.fitness import (
 )
 
 
+class EvolutionTransition(BaseModel):
+    unit: UnitOfEvolution
+    mutator: str | None
+    mutant: UnitOfEvolution
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
+
 class EvolutionStep(Chain):
     fitness_scorer: PopulationFitnessScorer
     pre_step_modifiers: List[Mutator]
     mutators: List[Mutator]
     post_step_modifiers: List[Mutator]
+    post_mutation_callback: None | Callable[[EvolutionTransition], None] = None
     output_key: str = "output"
 
     @property
@@ -38,6 +49,42 @@ class EvolutionStep(Chain):
         for mutator in self.post_step_modifiers:
             unit = mutator.mutate(population, unit)
         return unit
+
+    @abstractmethod
+    def _get_mutator(self) -> Mutator:
+        pass
+
+    def mutate(
+        self, population: Population, unit: UnitOfEvolution, **kwargs
+    ) -> EvolutionTransition:
+        mutator = self._get_mutator()
+        return EvolutionTransition(
+            unit=unit,
+            mutator=mutator.__class__.__name__,
+            mutant=self._mutate(mutator, population, unit, **kwargs),
+        )
+
+    async def amutate(
+        self, population: Population, unit: UnitOfEvolution, **kwargs
+    ) -> EvolutionTransition:
+        mutator = self._get_mutator()
+        return EvolutionTransition(
+            unit=unit,
+            mutator=mutator.__class__.__name__,
+            mutant=await self._amutate(mutator, population, unit, **kwargs),
+        )
+
+    @abstractmethod
+    def _mutate(
+        self, mutator: Mutator, population: Population, unit: UnitOfEvolution, **kwargs
+    ) -> UnitOfEvolution:
+        ...
+
+    @abstractmethod
+    async def _amutate(
+        self, mutator: Mutator, population: Population, unit: UnitOfEvolution, **kwargs
+    ) -> UnitOfEvolution:
+        ...
 
 
 class EvolutionExecutor(Chain):

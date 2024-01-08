@@ -26,8 +26,10 @@ CHAT_TEMPLATE = ChatPromptTemplate.from_messages(
     [
         SystemMessage(
             content="You are a meta heuristic assisting in the development of "
-            "better instructions to complete a task. Generate a new improved "
-            "insutrction mutant to complete the task."
+            "better instructions to complete a task. You are presented with a "
+            "ordered list of instructions. Generate a new improved "
+            "insutrction mutant to complete the task. "
+            "Only reply with the improved instruction and nothing else."
         ),
         HumanMessagePromptTemplate.from_template(
             "INSTRUCTION GENOTYPES FOUND IN ASCENDING ORDER OF QUALITY"
@@ -59,7 +61,7 @@ class LineageBasedMutation(LLMChain, DistributionEstimationMutator):
         mutation_prompt_factory: Callable[[str], MutationPrompt],
         task_prompt_factory: Callable[[str], TaskPrompt],
         llm: BaseLanguageModel,
-        **kwargs
+        **kwargs,
     ):
         return cls(
             llm=llm,
@@ -77,11 +79,18 @@ class LineageBasedMutation(LLMChain, DistributionEstimationMutator):
         stop = None
         if len(input_list) == 0:
             return [], stop
-
-        for inputs in input_list:
-            inputs["elites"] = "\n".join(
-                ["INSTRUCTION: " + str(x) for x in inputs["elites"]]
-            )
+        else:
+            for inputs in input_list:
+                # when we dont have any elites lets just use the current
+                # problem description
+                if len(inputs["elites"]) == 0:
+                    inputs[
+                        "elites"
+                    ] = f"INSTRUCTION: {str(inputs['problem_description'])}"
+                else:
+                    inputs["elites"] = "\n".join(
+                        ["INSTRUCTION: " + str(x) for x in inputs["elites"]]
+                    )
 
         return super().prep_prompts(input_list, run_manager)
 
@@ -93,10 +102,17 @@ class LineageBasedMutation(LLMChain, DistributionEstimationMutator):
         stop = None
         if len(input_list) == 0:
             return [], stop
-
-        for inputs in input_list:
-            inputs["elites"] = "\n".join(
-                ["INSTRUCTION: " + str(x) for x in inputs["elites"]]
-            )
+        else:
+            for inputs in input_list:
+                # when we dont have any elites lets just use the current
+                # problem description
+                if len(inputs["elites"]) == 0:
+                    inputs[
+                        "elites"
+                    ] = f"INSTRUCTION: {str(inputs['problem_description'])}"
+                else:
+                    inputs["elites"] = "\n".join(
+                        ["INSTRUCTION: " + str(x) for x in inputs["elites"]]
+                    )
 
         return await super().aprep_prompts(input_list, run_manager)
