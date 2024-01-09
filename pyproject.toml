@@ -8,10 +8,12 @@ packages = [{include = "prompt_breeder"}]
 include = ["prompt_breeder/data/*.json"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.12"
 langchain = "^0.0.340"
 tqdm = "^4.66.1"
 types-tqdm = "^4.66.0.5"
+pandas = "^2.1.4"
+tensorflow = "~2.14"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -26,6 +28,7 @@ pytest-cov = "^4.1.0"
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.3"
 pytest-cov = "^4.1.0"
+types-tensorflow = "^2.12.0.20240106"
 
 
 [tool.poetry.group.experiments.dependencies]
