@@ -10,7 +10,9 @@ from prompt_breeder.prompts.string import (
     StringProblemDescription,
 )
 from prompt_breeder.provider.json_file import RandomJsonListLoad
-from prompt_breeder.evolution.fitness import BestMemberFitness
+
+# from prompt_breeder.evolution.fitness import BestMemberFitness
+from prompt_breeder.evolution.fitness import WorstMemberFitness
 from prompt_breeder.evolution.base import EvolutionExecutor
 from prompt_breeder.evolution.binary_tournament import BinaryEvolution
 from prompt_breeder.evolution.initialization.base import (
@@ -41,6 +43,7 @@ from prompt_breeder.mutators.zero_order_hypermutation import (
 from prompt_breeder.mutators.first_order_hypermutation import (
     FirstOrderHypermutation,
 )
+from prompt_breeder.mutators.working_out_to_task import WorkingOutToTask
 from prompt_breeder.mutators.crossover import (
     PromptCrossover,
 )
@@ -53,9 +56,11 @@ from prompt_breeder.evolution.callbacks import (
     SavePopulation,
     TaskPromptSummary,
     UnitFitnessSummary,
+    TensorboardUnitFitness,
 )
 
-from experiments.gsm8k.fitness import create_gsm8k_fitness
+from .fitness import create_gsm8k_fitness
+from .examples_provider import random_gsmk_iterator
 
 
 def str_task_prompt_factory(x):
@@ -87,6 +92,7 @@ def create_experiment(
     fp_population: str = "./population.json",
     fp_distribution: str = "./distribution_output.csv",
     fp_detailed: str = "./detailed_output.csv",
+    tensorboard_dir: str = "./results",
 ):
     fitness_scorer = create_gsm8k_fitness(
         cached_llm,
@@ -100,8 +106,10 @@ def create_experiment(
         samples,
         llm_kwargs={"num_predict": num_predict},
     )
-    multiple_scorer = BestMemberFitness(scorer=fitness_scorer)
-    val_multiple_scorer = BestMemberFitness(scorer=val_fitness_scorer)
+    # multiple_scorer = BestMemberFitness(scorer=fitness_scorer)
+    # val_multiple_scorer = BestMemberFitness(scorer=val_fitness_scorer)
+    multiple_scorer = WorstMemberFitness(scorer=fitness_scorer)
+    val_multiple_scorer = WorstMemberFitness(scorer=val_fitness_scorer)
 
     cb0 = IncrementAge()
     cb1 = SavePopulation(fp=fp_population)
@@ -114,6 +122,11 @@ def create_experiment(
         fitness_scorer=fitness_scorer,
         val_fitness_scorer=val_fitness_scorer,
         fp=fp_detailed,
+    )
+    cb4 = TensorboardUnitFitness.from_fp(
+        fitness_scorer=multiple_scorer,
+        val_fitness_scorer=val_multiple_scorer,
+        fp=tensorboard_dir,
     )
 
     thinking_style_provider = RandomJsonListLoad(
@@ -188,6 +201,14 @@ def create_experiment(
         # callbacks=[handler]
     )
 
+    mutator_wott = WorkingOutToTask.from_llm(
+        task_prompt_factory=str_task_prompt_factory,
+        mutation_prompt_factory=str_mutation_prompt_factory,
+        correct_working_out_provider=random_gsmk_iterator(),
+        llm=llm,
+        llm_kwargs={"num_predict": num_predict},
+    )
+
     # Modifiers
     mutator_prompt_corssover = PromptCrossover(
         task_prompt_factory=str_task_prompt_factory,
@@ -239,11 +260,12 @@ def create_experiment(
             mutator_lineage,
             mutator_zero_order_hyper,
             mutator_first_order_hyper,
+            mutator_wott,
         ],
         post_step_modifiers=[mutator_prompt_corssover, mutator_elite, reinit],
     )
     evolution = EvolutionExecutor(
-        step=evolution_step, post_step_callback=[cb0, cb1, cb2, cb3]
+        step=evolution_step, post_step_callback=[cb0, cb1, cb2, cb3, cb4]
     )
 
     return pop_initializer, evolution

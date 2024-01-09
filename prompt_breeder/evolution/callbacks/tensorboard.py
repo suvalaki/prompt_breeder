@@ -3,12 +3,12 @@ import datetime
 import tensorflow as tf
 from tqdm import tqdm
 from pydantic import BaseModel, ConfigDict
-from prompt_breeder.evolution.fitness import FitnessScorer
+from prompt_breeder.evolution.fitness import PopulationFitnessScorer
 
 
 class TensorboardUnitFitness(BaseModel):
-    fitness_scorer: FitnessScorer
-    val_fitness_scorer: FitnessScorer
+    fitness_scorer: PopulationFitnessScorer
+    val_fitness_scorer: PopulationFitnessScorer
     fp: str = "./distribution_output.csv"
     train_summary_writer: tf.summary.SummaryWriter
     test_summary_writer: tf.summary.SummaryWriter
@@ -17,8 +17,8 @@ class TensorboardUnitFitness(BaseModel):
     @classmethod
     def from_fp(
         cls,
-        fitness_scorer: FitnessScorer,
-        val_fitness_scorer: FitnessScorer,
+        fitness_scorer: PopulationFitnessScorer,
+        val_fitness_scorer: PopulationFitnessScorer,
         fp: str = "./results",
     ):
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
